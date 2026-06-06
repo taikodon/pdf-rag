@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Sparkles, Loader2, Database, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Send, Trash2, Sparkles, Loader2, Database, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 import type { ChatMessage } from '../types';
 
 interface ChatPanelProps {
@@ -13,6 +13,7 @@ interface ChatPanelProps {
   onSendMessage: (text: string) => void;
   onIndexPaper: () => void;
   onClearMessages: () => void;
+  onOpenSettings: () => void;
 }
 
 export function ChatPanel({
@@ -26,6 +27,7 @@ export function ChatPanel({
   onSendMessage,
   onIndexPaper,
   onClearMessages,
+  onOpenSettings,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -117,9 +119,28 @@ export function ChatPanel({
       {/* メッセージ一覧 */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
         {indexError && (
-          <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-            <span className="whitespace-pre-wrap">{indexError}</span>
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl space-y-2.5">
+            <div className="flex items-start gap-2">
+              <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-red-700">Ollamaに接続できません</p>
+                <p className="text-[11px] text-red-500 mt-0.5">以下を確認してください：</p>
+              </div>
+            </div>
+            <ol className="space-y-1 ml-1">
+              {['Ollamaがインストール済みか', 'ollama serve が起動しているか', 'URLが正しいか（設定で変更可）'].map((s, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-[11px] text-red-600">
+                  <span className="font-bold">{i + 1}.</span>{s}
+                </li>
+              ))}
+            </ol>
+            <button
+              onClick={onOpenSettings}
+              className="flex items-center gap-1.5 px-3 h-7 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors w-full justify-center"
+            >
+              <Settings size={12} />
+              設定を開いてURLを確認する
+            </button>
           </div>
         )}
         {messages.length === 0 && !indexError ? (

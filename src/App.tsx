@@ -233,6 +233,7 @@ function PdfApp() {
             onSendMessage={chat.sendMessage}
             onIndexPaper={handleIndexPaper}
             onClearMessages={chat.clearMessages}
+            onOpenSettings={() => setSidebarTab('settings')}
           />
         </div>
       </div>

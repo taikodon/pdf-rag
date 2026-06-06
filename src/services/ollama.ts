@@ -1,4 +1,5 @@
 import type { OllamaMessage } from '../types';
+import { readTextFile } from '@tauri-apps/plugin-fs';
 
 const TIMEOUT_MS = 30_000;
 
@@ -25,6 +26,26 @@ export const ollamaService = {
     } catch {
       return false;
     }
+  },
+
+  // WSL2環境でWindowsホストのOllamaを自動検出する
+  async detectUrl(): Promise<string | null> {
+    // まずlocalhost
+    if (await this.ping('http://localhost:11434')) return 'http://localhost:11434';
+
+    // WSL2の場合、/etc/resolv.confのnameserverがWindowsホストIP
+    try {
+      const resolv = await readTextFile('/etc/resolv.conf');
+      const match = resolv.match(/^nameserver\s+(\d+\.\d+\.\d+\.\d+)/m);
+      if (match) {
+        const hostUrl = `http://${match[1]}:11434`;
+        if (await this.ping(hostUrl)) return hostUrl;
+      }
+    } catch {
+      // WSL2以外の環境では無視
+    }
+
+    return null;
   },
 
   async chat(
