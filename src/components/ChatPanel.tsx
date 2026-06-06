@@ -7,6 +7,7 @@ interface ChatPanelProps {
   isLoading: boolean;
   isIndexing: boolean;
   indexProgress: { current: number; total: number };
+  indexError: string | null;
   isIndexed: boolean;
   hasPaper: boolean;
   onSendMessage: (text: string) => void;
@@ -19,6 +20,7 @@ export function ChatPanel({
   isLoading,
   isIndexing,
   indexProgress,
+  indexError,
   isIndexed,
   hasPaper,
   onSendMessage,
@@ -114,7 +116,13 @@ export function ChatPanel({
 
       {/* メッセージ一覧 */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-        {messages.length === 0 ? (
+        {indexError && (
+          <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+            <span className="whitespace-pre-wrap">{indexError}</span>
+          </div>
+        )}
+        {messages.length === 0 && !indexError ? (
           <EmptyState hasPaper={hasPaper} isIndexed={isIndexed} />
         ) : (
           messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)

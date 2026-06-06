@@ -176,8 +176,8 @@ function PdfApp() {
   }, [currentPaper?.id]);
 
   const handleIndexPaper = async () => {
-    await chat.indexPaper();
-    setIsIndexed(true);
+    const ok = await chat.indexPaper();
+    if (ok) setIsIndexed(true);
   };
 
   const showSubPanel = sidebarTab === 'history' || sidebarTab === 'settings';
@@ -227,6 +227,7 @@ function PdfApp() {
             isLoading={chat.isLoading}
             isIndexing={chat.isIndexing}
             indexProgress={chat.indexProgress}
+            indexError={chat.indexError}
             isIndexed={isIndexed}
             hasPaper={!!currentPaper}
             onSendMessage={chat.sendMessage}

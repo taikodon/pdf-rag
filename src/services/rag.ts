@@ -13,6 +13,8 @@ interface Chunk {
   index: number;
 }
 
+const yield_ = () => new Promise<void>(r => setTimeout(r, 0));
+
 export const ragService = {
   async extractPages(pdfDoc: PDFDocumentProxy): Promise<PageText[]> {
     const pages: PageText[] = [];
@@ -25,6 +27,7 @@ export const ragService = {
         .replace(/\s+/g, ' ')
         .trim();
       if (text) pages.push({ page: i, text });
+      await yield_();
     }
     return pages;
   },
@@ -55,14 +58,21 @@ export const ragService = {
     ollamaUrl: string,
     onProgress?: (current: number, total: number) => void
   ): Promise<void> {
+    // Ollamaの疎通確認
+    const reachable = await ollamaService.ping(ollamaUrl);
+    if (!reachable) {
+      throw new Error(`Ollamaに接続できません (${ollamaUrl})\n「設定」でURLを確認し、ollama serve が起動しているか確認してください。`);
+    }
+
     await dbService.deleteDocChunks(paperId);
 
     const pages = await this.extractPages(pdfDoc);
     const chunks = this.chunkPages(pages);
 
     for (let i = 0; i < chunks.length; i++) {
-      const { content, page, index } = chunks[i];
+      await yield_(); // UIを更新させる
       onProgress?.(i + 1, chunks.length);
+      const { content, page, index } = chunks[i];
       const embedding = await ollamaService.embed(embedModel, content, ollamaUrl);
       await dbService.saveDocChunk(paperId, index, content, page, embedding);
     }

@@ -1,11 +1,30 @@
 import type { OllamaMessage } from '../types';
 
+const TIMEOUT_MS = 30_000;
+
+function withTimeout(ms: number): AbortController {
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl;
+}
+
 export const ollamaService = {
   async listModels(baseUrl: string): Promise<string[]> {
-    const res = await fetch(`${baseUrl}/api/tags`);
+    const ctrl = withTimeout(5_000);
+    const res = await fetch(`${baseUrl}/api/tags`, { signal: ctrl.signal });
     if (!res.ok) throw new Error(`Ollama接続エラー: ${res.status}`);
     const data = await res.json() as { models?: { name: string }[] };
     return data.models?.map(m => m.name) ?? [];
+  },
+
+  async ping(baseUrl: string): Promise<boolean> {
+    try {
+      const ctrl = withTimeout(3_000);
+      const res = await fetch(`${baseUrl}/api/tags`, { signal: ctrl.signal });
+      return res.ok;
+    } catch {
+      return false;
+    }
   },
 
   async chat(
@@ -14,10 +33,12 @@ export const ollamaService = {
     onToken: (token: string) => void,
     baseUrl: string
   ): Promise<string> {
+    const ctrl = withTimeout(TIMEOUT_MS);
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages, stream: true }),
+      signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`LLMエラー: ${res.status}`);
 
@@ -45,10 +66,12 @@ export const ollamaService = {
   },
 
   async embed(model: string, text: string, baseUrl: string): Promise<number[]> {
+    const ctrl = withTimeout(TIMEOUT_MS);
     const res = await fetch(`${baseUrl}/api/embed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, input: text }),
+      signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`埋め込みエラー: ${res.status}`);
     const data = await res.json() as { embeddings?: number[][]; embedding?: number[] };

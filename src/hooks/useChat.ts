@@ -19,6 +19,7 @@ export function useChat({ paperId, pdfDoc, llmModel, embedModel, ollamaUrl, isIn
   const [isLoading, setIsLoading] = useState(false);
   const [isIndexing, setIsIndexing] = useState(false);
   const [indexProgress, setIndexProgress] = useState({ current: 0, total: 0 });
+  const [indexError, setIndexError] = useState<string | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
 
@@ -27,14 +28,20 @@ export function useChat({ paperId, pdfDoc, llmModel, embedModel, ollamaUrl, isIn
     setMessages(history);
   }, []);
 
-  const indexPaper = useCallback(async () => {
-    if (!paperId || !pdfDoc) return;
+  const indexPaper = useCallback(async (): Promise<boolean> => {
+    if (!paperId || !pdfDoc) return false;
     setIsIndexing(true);
+    setIndexError(null);
     setIndexProgress({ current: 0, total: 0 });
     try {
       await ragService.indexPaper(paperId, pdfDoc, embedModel, ollamaUrl, (current, total) => {
         setIndexProgress({ current, total });
       });
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'インデックス作成に失敗しました';
+      setIndexError(msg);
+      return false;
     } finally {
       setIsIndexing(false);
     }
@@ -104,5 +111,5 @@ export function useChat({ paperId, pdfDoc, llmModel, embedModel, ollamaUrl, isIn
     setMessages([]);
   }, [paperId]);
 
-  return { messages, isLoading, isIndexing, indexProgress, loadHistory, indexPaper, sendMessage, clearMessages };
+  return { messages, isLoading, isIndexing, indexProgress, indexError, loadHistory, indexPaper, sendMessage, clearMessages };
 }
