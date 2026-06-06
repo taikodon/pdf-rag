@@ -1,19 +1,10 @@
-# 仮想環境
-.venv/
-venv/
-env/
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
+# Node.js
+node_modules/
 dist/
-build/
-.eggs/
 
-# アップロードデータ（ローカルのみ）
-data/uploads/
-data/vectorstore/
+# Tauri
+src-tauri/target/
+src-tauri/gen/
 
 # 環境変数
 .env
@@ -28,5 +19,5 @@ data/vectorstore/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/secrets.toml
+# ビルド
+*.log

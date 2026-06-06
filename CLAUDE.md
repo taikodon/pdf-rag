@@ -1,87 +1,134 @@
-# Local LLM RAG PDF Reader
+# PDF RAG
 
 ## プロジェクト概要
 
-完全ローカル環境で動作する論文PDF読解アプリ。外部LLM APIを使用せず、Ollama + ChromaDB + Streamlit で構成する。
+Tauri v2 + React + TypeScript 製のローカルLLM RAG論文PDF読解デスクトップアプリ。
+外部APIを一切使用せず、Ollama（ローカルLLM）のみで動作する。
 
 ## 技術スタック
 
 | 用途 | ライブラリ |
 |---|---|
-| UI | Streamlit |
-| PDFレンダリング | streamlit-pdf-viewer |
-| RAG | LlamaIndex |
-| ベクトルDB | ChromaDB |
-| ローカルLLM | Ollama |
-| 埋め込み | sentence-transformers (日本語対応) |
-| PDFパース | PyMuPDF |
-| テスト | pytest |
-
-Python: 3.11+
+| デスクトップフレームワーク | Tauri v2 |
+| フロントエンド | React 19 + TypeScript |
+| スタイリング | Tailwind CSS |
+| PDFレンダリング | pdfjs-dist |
+| SQLite永続化 | @tauri-apps/plugin-sql |
+| 設定永続化 | @tauri-apps/plugin-store |
+| ローカルLLM/埋め込み | Ollama (`/api/chat`, `/api/embed`) |
+| RAGパイプライン | TypeScriptで自前実装（cosine similarity） |
+| ビルドツール | Vite |
 
 ## 開発コマンド
 
-| コマンド | 内容 |
-|---|---|
-| `/setup` | venv作成 + 依存インストール |
-| `/run` | Streamlitアプリ起動 |
-| `/test` | pytestでテスト実行 |
-
-手動実行する場合:
 ```bash
-# 環境構築
-python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+# 依存インストール
+npm install
 
-# アプリ起動
-streamlit run src/app.py
+# 開発サーバー起動（デスクトップウィンドウが開く）
+npm run tauri dev
 
-# テスト
-pytest tests/ -v
+# フロントエンドのみビルド確認
+npm run build
+
+# 型チェック
+npm run typecheck
 ```
 
-## アーキテクチャ
-
-### ディレクトリ構成
+## ディレクトリ構成
 
 ```
 src/
-├── app.py              # エントリポイント: Streamlit初期化・レイアウト呼び出し
-├── ui/                 # UIレイヤー: Streamlitコンポーネントのみ
-│   ├── layout.py       # st.columns(2) で左右分割
-│   ├── pdf_viewer.py   # 左カラム: PDFプレビュー
-│   └── chat.py         # 右カラム: チャット入出力
-├── rag/                # RAG処理レイヤー: LLM・検索ロジック
-│   ├── pipeline.py     # RAGパイプライン統合エントリ
-│   ├── retriever.py    # ChromaDB 検索
-│   └── generator.py    # Ollama 推論・ストリーミング
-└── data/               # データ処理レイヤー: PDF→チャンク→ベクトル
-    ├── pdf_loader.py   # PyMuPDF でテキスト抽出
-    ├── chunker.py      # 論文2段組み対応チャンク分割
-    └── embeddings.py   # HuggingFace 埋め込み生成
+├── main.tsx                  # React エントリポイント
+├── App.tsx                   # ルートコンポーネント・レイアウト
+├── index.css                 # Tailwind + PDF.js テキスト層スタイル
+├── components/
+│   ├── Sidebar.tsx           # アイコンサイドバー (reader/history/settings)
+│   ├── Toolbar.tsx           # ページ操作・ズーム
+│   ├── PdfCanvas.tsx         # PDF ビューア (Ctrl+ホイールズーム)
+│   ├── ChatPanel.tsx         # RAG チャット UI（常時右側表示）
+│   ├── HistoryPanel.tsx      # 論文履歴一覧
+│   └── SettingsPanel.tsx     # Ollama URL・モデル設定
+├── contexts/
+│   └── AppContext.tsx        # グローバル状態管理
+├── hooks/
+│   ├── usePdfViewer.ts       # PDF.js 統合フック
+│   └── useChat.ts            # RAG チャット管理フック
+├── services/
+│   ├── db.ts                 # SQLite CRUD
+│   ├── store.ts              # 永続設定 (ollamaUrl, llmModel, embedModel)
+│   ├── ollama.ts             # Ollama クライアント (listModels, chat, embed)
+│   └── rag.ts                # RAGパイプライン (extract, chunk, index, search)
+└── types/
+    └── index.ts              # Paper, ChatMessage, DocChunk 等の型定義
 
-data/
-├── uploads/            # アップロードPDF格納 (gitignore対象)
-└── vectorstore/        # ChromaDB 永続化ストレージ (gitignore対象)
+src-tauri/
+├── src/
+│   ├── main.rs               # Tauri エントリポイント
+│   └── lib.rs                # get_default_open_path() コマンド (WSL2対応)
+├── Cargo.toml
+├── tauri.conf.json           # productName: "PDF RAG"
+└── capabilities/
+    └── default.json
 ```
 
-### レイヤー間依存ルール
+## アプリレイアウト
 
-`ui → rag → data` の一方向のみ。逆依存禁止。
+```
+┌────┬──────────┬──────────────────────┬─────────────┐
+│    │          │                      │             │
+│icon│ サブパネル│     PDF ビューア      │  RAGチャット │
+│bar │(履歴/設定)│                      │   (常時表示) │
+│    │          │                      │             │
+└────┴──────────┴──────────────────────┴─────────────┘
+  48px  260px(任意)      flex-1                320px
+```
 
-## コーディング規約
+## データベーススキーマ (SQLite)
 
-- **識別子:** 英語（変数・関数・クラス・ファイル名）
-- **UI文字列・コメント:** 日本語
-- **型ヒント:** 全関数に必須（`from __future__ import annotations` を各ファイルの先頭に記述）
-- **外部API:** 完全禁止（OpenAI等）。LLMはOllamaのみ使用
-- **エラー表示:** Ollama未起動・モデル未取得時はUIに `st.error()` で明示
+```sql
+CREATE TABLE papers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  file_path TEXT NOT NULL UNIQUE,
+  last_opened_page INTEGER DEFAULT 1,
+  last_zoom_level REAL DEFAULT 1.0,
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-## 実装上の注意
+CREATE TABLE chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id INTEGER NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE
+);
 
-- **チャンク分割:** 論文の2段組み・図表キャプションを考慮し、セクション境界を優先したチャンク設定を行う
-- **ストリーミング:** `st.write_stream()` を使用し、LLM推論結果を逐次表示する
-- **ChromaDB永続化:** `data/vectorstore/` に保存。PDFハッシュでインデックスの重複登録を防ぐ
-- **モデル選択:** Ollamaのモデルはサイドバーのセレクトボックスでユーザーが選択できるようにする
+CREATE TABLE doc_chunks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id INTEGER NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  page_number INTEGER NOT NULL,
+  embedding TEXT NOT NULL,  -- JSON float[] として保存
+  FOREIGN KEY (paper_id) REFERENCES papers(id) ON DELETE CASCADE
+);
+```
+
+## RAG パイプライン
+
+1. PDF.js `getTextContent()` でページ別テキスト抽出
+2. スライディングウィンドウでチャンク分割（400語、50語オーバーラップ）
+3. Ollama `/api/embed` (nomic-embed-text) でベクトル化
+4. SQLite に embedding を JSON 文字列として保存
+5. 質問時: 同様に埋め込み → cosine similarity → 上位3チャンク → Ollama `/api/chat`
+
+## 前提条件
+
+- [Ollama](https://ollama.com/) のインストールと `ollama serve` の起動
+- LLM モデル: `ollama pull llama3` 等
+- 埋め込みモデル: `ollama pull nomic-embed-text`
 
 ## git・PR ルール
 
