@@ -38,59 +38,6 @@ function addEndOfContent(textLayerEl: HTMLElement): void {
   setupGlobalPointerUp();
 }
 
-function splitTextLayerSpans(container: HTMLElement): void {
-  const measureCanvas = document.createElement('canvas');
-  const ctx = measureCanvas.getContext('2d');
-  if (!ctx) return;
-
-  const spans = Array.from(container.querySelectorAll<HTMLSpanElement>('span'));
-
-  for (const span of spans) {
-    if (span.getAttribute('role') === 'img') continue;
-    if (span.children.length > 0) continue;
-    const text = span.textContent ?? '';
-    if (!text.includes(' ')) continue;
-
-    const spanStyle = span.style;
-    const baseLeft = parseFloat(spanStyle.left) || 0;
-    const transform = spanStyle.transform;
-
-    let scaleX = 1;
-    const scaleMatch = transform.match(/scaleX\(([\d.eE+\-]+)\)/);
-    if (scaleMatch) {
-      scaleX = parseFloat(scaleMatch[1]);
-    } else if (/matrix/.test(transform)) {
-      const m = transform.match(/matrix\(([^)]+)\)/);
-      if (m) {
-        const p = m[1].split(/,\s*/).map(Number);
-        if (Math.abs(p[1]) > 0.01) continue;
-        scaleX = p[0];
-      }
-    }
-
-    const computedStyle = window.getComputedStyle(span);
-    ctx.font = computedStyle.font;
-
-    const tokens = text.split(/(?<= )/);
-    if (tokens.length < 2) continue;
-
-    const fragment = document.createDocumentFragment();
-    let offsetX = 0;
-    for (const token of tokens) {
-      if (!token) continue;
-      const ws = document.createElement('span');
-      ws.textContent = token;
-      ws.style.cssText = spanStyle.cssText;
-      ws.style.left = `${baseLeft + offsetX}px`;
-      offsetX += ctx.measureText(token).width * scaleX;
-      fragment.appendChild(ws);
-    }
-
-    span.parentElement?.insertBefore(fragment, span);
-    span.remove();
-  }
-}
-
 interface UsePdfViewerOptions {
   onPageChange?: (page: number, total: number) => void;
 }
@@ -196,7 +143,6 @@ export function usePdfViewer({ onPageChange }: UsePdfViewerOptions = {}) {
         });
         await tl.render();
         if (renderGenRef.current !== gen) return;
-        splitTextLayerSpans(textLayerEl);
         addEndOfContent(textLayerEl);
       }
     },
