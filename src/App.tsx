@@ -190,7 +190,7 @@ function PdfApp() {
 
         {/* Sub-panel (history / settings) */}
         {showSubPanel && (
-          <div className="w-60 flex-shrink-0 border-r border-gray-200 flex flex-col overflow-hidden">
+          <div className="w-60 flex-shrink-0 border-r border-zinc-200 flex flex-col overflow-hidden">
             {sidebarTab === 'history' && (
               <HistoryPanel onOpenPaper={(path) => openPaperByPath(path)} />
             )}
@@ -237,12 +237,18 @@ function PdfApp() {
       </div>
 
       {/* Status bar */}
-      <div className="h-6 bg-white border-t border-gray-200 flex items-center px-3 gap-6 text-xs text-gray-500 flex-shrink-0">
-        <span>論文：{currentPaper?.title ?? '未選択'}</span>
-        <span>
-          ページ：{viewerPage || '–'}/{totalPages || '–'}　ズーム：{Math.round(zoom * 100)}%
-        </span>
-        {isIndexed && <span className="text-green-600">RAGインデックス済</span>}
+      <div className="h-6 bg-white border-t border-zinc-200 flex items-center px-4 gap-4 text-[11px] text-zinc-400 flex-shrink-0">
+        <span className="truncate max-w-xs text-zinc-500">{currentPaper?.title ?? '論文未選択'}</span>
+        <span className="text-zinc-300">·</span>
+        <span>p.{viewerPage || '–'} / {totalPages || '–'}</span>
+        <span className="text-zinc-300">·</span>
+        <span>{Math.round(zoom * 100)}%</span>
+        {isIndexed && (
+          <>
+            <span className="text-zinc-300">·</span>
+            <span className="text-emerald-500 font-medium">RAG ready</span>
+          </>
+        )}
       </div>
     </div>
   );

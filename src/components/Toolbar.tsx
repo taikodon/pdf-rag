@@ -32,7 +32,6 @@ export function Toolbar({
   onFitToWidth,
 }: ToolbarProps) {
   const [pageInput, setPageInput] = useState('');
-  const [jumpInput, setJumpInput] = useState('');
   const pageInputRef = useRef<HTMLInputElement>(null);
 
   function handlePageSubmit(e: React.FormEvent) {
@@ -43,48 +42,28 @@ export function Toolbar({
     pageInputRef.current?.blur();
   }
 
-  function handleJumpSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const p = parseInt(jumpInput, 10);
-    if (!isNaN(p)) onPageChange(p);
-    setJumpInput('');
-  }
-
   const zoomPercent = Math.round(zoom * 100);
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-white border-b border-gray-200 text-sm flex-shrink-0">
-      {/* ブランド */}
-      <span className="font-bold text-blue-600 text-sm tracking-tight mr-1">PDF RAG</span>
-
-      <div className="w-px h-5 bg-gray-200" />
-
+    <div className="flex items-center gap-1.5 px-3 h-11 bg-white border-b border-zinc-200/80 flex-shrink-0 shadow-sm">
       {/* ファイルを開く */}
       <button
         onClick={onOpenFile}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50 text-gray-700"
+        className="flex items-center gap-1.5 px-3 h-7 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors shadow-sm shadow-indigo-500/30"
       >
-        <FolderOpen size={15} />
-        <span>ファイルを開く</span>
+        <FolderOpen size={13} />
+        開く
       </button>
 
-      <div className="w-px h-5 bg-gray-200 mx-1" />
+      <Sep />
 
       {/* ページナビゲーション */}
-      <button
-        onClick={() => onPageChange(1)}
-        disabled={currentPage <= 1}
-        className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-      >
-        <ChevronsLeft size={16} />
-      </button>
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage <= 1}
-        className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-      >
-        <ChevronLeft size={16} />
-      </button>
+      <IconBtn onClick={() => onPageChange(1)} disabled={currentPage <= 1} title="最初のページ">
+        <ChevronsLeft size={15} />
+      </IconBtn>
+      <IconBtn onClick={() => onPageChange(currentPage - 1)} disabled={currentPage <= 1} title="前のページ">
+        <ChevronLeft size={15} />
+      </IconBtn>
 
       <form onSubmit={handlePageSubmit} className="flex items-center gap-1">
         <input
@@ -94,74 +73,74 @@ export function Toolbar({
           onChange={e => setPageInput(e.target.value)}
           onFocus={() => setPageInput(String(currentPage))}
           onBlur={() => setPageInput('')}
-          className="w-10 text-center border border-gray-300 rounded py-0.5 text-sm"
+          className="w-9 h-6 text-center border border-zinc-200 rounded-md text-xs text-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400 bg-zinc-50"
         />
-        <span className="text-gray-500">/ {totalPages}</span>
+        <span className="text-xs text-zinc-400">/ {totalPages || '–'}</span>
       </form>
 
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages}
-        className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-      >
-        <ChevronRight size={16} />
-      </button>
-      <button
-        onClick={() => onPageChange(totalPages)}
-        disabled={currentPage >= totalPages}
-        className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-      >
-        <ChevronsRight size={16} />
-      </button>
+      <IconBtn onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= totalPages} title="次のページ">
+        <ChevronRight size={15} />
+      </IconBtn>
+      <IconBtn onClick={() => onPageChange(totalPages)} disabled={currentPage >= totalPages} title="最後のページ">
+        <ChevronsRight size={15} />
+      </IconBtn>
 
-      <div className="w-px h-5 bg-gray-200 mx-1" />
+      <Sep />
 
       {/* ズーム */}
-      <button onClick={() => onZoomChange(zoom - 0.1)} className="p-1 rounded hover:bg-gray-100">
-        <ZoomOut size={16} />
-      </button>
-      <span className="w-14 text-center border border-gray-300 rounded py-0.5 text-sm">
+      <IconBtn onClick={() => onZoomChange(zoom - 0.1)} title="縮小">
+        <ZoomOut size={15} />
+      </IconBtn>
+      <span className="w-12 h-6 flex items-center justify-center border border-zinc-200 rounded-md text-xs text-zinc-600 bg-zinc-50">
         {zoomPercent}%
       </span>
-      <button onClick={() => onZoomChange(zoom + 0.1)} className="p-1 rounded hover:bg-gray-100">
-        <ZoomIn size={16} />
-      </button>
+      <IconBtn onClick={() => onZoomChange(zoom + 0.1)} title="拡大">
+        <ZoomIn size={15} />
+      </IconBtn>
 
       <button
         onClick={onFitToWidth}
-        className="flex items-center gap-1 px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-700"
+        title="幅に合わせる"
+        className="flex items-center gap-1 px-2 h-6 rounded-md border border-zinc-200 hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 text-xs transition-colors"
       >
-        <Maximize2 size={14} />
-        <span>幅に合わせる</span>
+        <Maximize2 size={12} />
+        幅合わせ
       </button>
 
-      <div className="w-px h-5 bg-gray-200 mx-1" />
-
-      {/* ページジャンプ */}
-      <form onSubmit={handleJumpSubmit} className="flex items-center gap-1">
-        <input
-          type="number"
-          placeholder="ページ"
-          value={jumpInput}
-          onChange={e => setJumpInput(e.target.value)}
-          className="w-16 border border-gray-300 rounded py-0.5 px-1 text-sm"
-          min={1}
-          max={totalPages}
-        />
-        <button
-          type="submit"
-          className="px-2 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-        >
-          移動
-        </button>
-      </form>
-
+      {/* ファイル名 */}
       {filename && (
         <>
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-          <span className="text-gray-500 truncate max-w-xs">{filename}</span>
+          <Sep />
+          <span className="text-xs text-zinc-400 truncate max-w-xs">{filename}</span>
         </>
       )}
     </div>
+  );
+}
+
+function Sep() {
+  return <div className="w-px h-5 bg-zinc-200 mx-0.5 flex-shrink-0" />;
+}
+
+function IconBtn({
+  children,
+  onClick,
+  disabled,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-25 transition-colors"
+    >
+      {children}
+    </button>
   );
 }

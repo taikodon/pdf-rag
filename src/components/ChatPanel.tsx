@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Trash2, Database, Loader2 } from 'lucide-react';
+import { Send, Trash2, Sparkles, Loader2, Database, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { ChatMessage } from '../types';
 
 interface ChatPanelProps {
@@ -27,6 +27,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,9 +35,10 @@ export function ChatPanel({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !hasPaper) return;
     onSendMessage(input.trim());
     setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -46,109 +48,185 @@ export function ChatPanel({
     }
   }
 
+  function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+  }
+
+  const canSend = !!input.trim() && !isLoading && hasPaper && !isIndexing;
+
   return (
-    <div className="flex flex-col h-full bg-white border-l border-gray-200">
+    <div className="flex flex-col h-full bg-zinc-50 border-l border-zinc-200">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
-        <h2 className="text-sm font-semibold text-gray-700">RAG チャット</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-white flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <Sparkles size={13} className="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-800 leading-none">Research Assistant</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5 leading-none">
+              {isIndexing
+                ? `インデックス作成中... ${indexProgress.current}/${indexProgress.total}`
+                : isIndexed
+                ? 'RAG インデックス済み'
+                : hasPaper
+                ? 'インデックス未作成'
+                : 'PDF未選択'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           {hasPaper && (
             <button
               onClick={onIndexPaper}
               disabled={isIndexing}
               title={isIndexed ? 'インデックスを再作成' : 'RAGインデックスを作成'}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border transition-colors ${
+              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium transition-all ${
                 isIndexed
-                  ? 'border-green-300 text-green-700 hover:bg-green-50'
-                  : 'border-blue-300 text-blue-700 hover:bg-blue-50'
+                  ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+                  : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200'
               } disabled:opacity-50`}
             >
-              {isIndexing ? <Loader2 size={12} className="animate-spin" /> : <Database size={12} />}
-              {isIndexing
-                ? `${indexProgress.current}/${indexProgress.total}`
-                : isIndexed ? 'インデックス済' : 'インデックス作成'}
+              {isIndexing ? (
+                <Loader2 size={11} className="animate-spin" />
+              ) : isIndexed ? (
+                <CheckCircle2 size={11} />
+              ) : (
+                <Database size={11} />
+              )}
+              {isIndexed ? '再作成' : 'インデックス'}
             </button>
           )}
-          {messages.length > 0 && (
+          {messages.length > 0 && !isLoading && (
             <button
               onClick={onClearMessages}
-              title="会話履歴をクリア"
-              className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50"
+              title="会話をクリア"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
             </button>
           )}
         </div>
       </div>
 
       {/* メッセージ一覧 */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-300 text-xs gap-2">
-            {!hasPaper ? (
-              <p>PDFを開いて質問してください</p>
-            ) : !isIndexed ? (
-              <>
-                <p>「インデックス作成」ボタンを押すと</p>
-                <p>RAGを使って論文を検索できます</p>
-              </>
-            ) : (
-              <p>論文について質問してください</p>
-            )}
-          </div>
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+        {messages.length === 0 ? (
+          <EmptyState hasPaper={hasPaper} isIndexed={isIndexed} />
+        ) : (
+          messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)
         )}
-
-        {messages.map(msg => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-blue-500 text-white rounded-br-sm'
-                  : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-              }`}
-            >
-              {msg.content || (
-                <span className="inline-flex gap-1 items-center text-gray-400">
-                  <span className="animate-bounce">●</span>
-                  <span className="animate-bounce [animation-delay:0.15s]">●</span>
-                  <span className="animate-bounce [animation-delay:0.3s]">●</span>
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
         <div ref={bottomRef} />
       </div>
 
       {/* 入力エリア */}
-      <div className="flex-shrink-0 border-t border-gray-200 p-3">
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              !hasPaper
-                ? 'PDFを開いてください'
-                : isIndexing
-                ? 'インデックス作成中...'
-                : '質問を入力 (Shift+Enter で改行)'
-            }
-            disabled={!hasPaper || isIndexing || isLoading}
-            rows={2}
-            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-400"
-          />
+      <div className="flex-shrink-0 p-3 bg-white border-t border-zinc-200">
+        {hasPaper && !isIndexed && !isIndexing && messages.length === 0 && (
+          <div className="flex items-center gap-2 mb-2.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+            <AlertCircle size={12} className="flex-shrink-0" />
+            <span>まずインデックスを作成するとRAG検索が使えます</span>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                !hasPaper
+                  ? 'PDFを開いてください'
+                  : isIndexing
+                  ? 'インデックス作成中...'
+                  : '論文について質問する…'
+              }
+              disabled={!hasPaper || isIndexing}
+              rows={1}
+              className="w-full border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm text-zinc-800 placeholder:text-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400 disabled:bg-zinc-100 disabled:text-zinc-400 bg-white transition-all leading-relaxed"
+              style={{ minHeight: '40px' }}
+            />
+          </div>
           <button
             type="submit"
-            disabled={!input.trim() || isLoading || !hasPaper || isIndexing}
-            className="flex-shrink-0 p-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            disabled={!canSend}
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-2xl bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm shadow-indigo-500/30 hover:shadow-indigo-500/40"
           >
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            {isLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Send size={15} className="translate-x-px" />
+            )}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ msg }: { msg: ChatMessage }) {
+  const isUser = msg.role === 'user';
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[82%] bg-indigo-500 text-white rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed shadow-sm shadow-indigo-500/20 whitespace-pre-wrap">
+          {msg.content}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-start gap-2.5">
+      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+        <Sparkles size={11} className="text-white" />
+      </div>
+      <div className="max-w-[82%] bg-white border border-zinc-200 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-zinc-700 leading-relaxed shadow-sm whitespace-pre-wrap">
+        {msg.content || <ThinkingDots />}
+      </div>
+    </div>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <span className="inline-flex gap-1 items-center h-4">
+      {[0, 150, 300].map(delay => (
+        <span
+          key={delay}
+          className="w-1.5 h-1.5 rounded-full bg-zinc-300 animate-bounce"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function EmptyState({ hasPaper, isIndexed }: { hasPaper: boolean; isIndexed: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-48 gap-3 py-8">
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+        <Sparkles size={22} className="text-indigo-400" />
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium text-zinc-500">
+          {!hasPaper
+            ? 'PDFを開いてください'
+            : !isIndexed
+            ? 'インデックスを作成してください'
+            : '論文について質問できます'}
+        </p>
+        <p className="text-xs text-zinc-400 mt-1">
+          {!hasPaper
+            ? 'ツールバーの「開く」からPDFを選択'
+            : !isIndexed
+            ? 'ヘッダーの「インデックス」ボタンを押してRAGを有効化'
+            : 'Shift+Enterで改行、Enterで送信'}
+        </p>
       </div>
     </div>
   );
