@@ -1,4 +1,4 @@
-# PDF RAG
+# PDF RAG(試作中)
 
 ローカルLLM と RAG（Retrieval-Augmented Generation）を使って論文PDFを読解する、完全ローカル動作のデスクトップアプリです。外部APIを一切使用しないため、機密性の高い論文も安全に扱えます。
 
